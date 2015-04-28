@@ -1,22 +1,23 @@
 import scala.collection.mutable.Map
 import scala.util.matching.Regex
+import scala.collection.immutable.ListMap
 
 case class Member(sign: String, coef: String, x: String, degree: String)
 
 object computor {
 
-	val myMap = Map[String, Float]("0" -> 0, "1" -> 0, "2" -> 0)
+	val myMap = Map[String, Float]("2" -> 0, "1" -> 0, "0" -> 0)
 	val df = new java.text.DecimalFormat("#####.######")
 
 	def main(args: Array[String]) = {
 		if ( args.size != 1 ) {
-			println("Computor takes only one argument.")
+			println("Computor takes one argument.")
 			System.exit(0)
 		}
 
 		val whole = args(0).split("=")
 		if ( whole.size != 2 ) {
-			println("Invalid argument. Ex: X^2 + 2 * X + 1 = 0")
+			println("Invalid argument. Ex: 1 + 2 * X + X^2 = 0")
 			System.exit(0)
 		}
 		val Pattern = ("""([+-]|\A)\s*(\d+.\d+|\d+)?\s*\Q*\E?\s*(X)?\s*(?:\Q^\E\s*(\d+))?\s*""").r
@@ -32,7 +33,6 @@ object computor {
 					transform( Member(sign, coef, x, degree), _ - _ )
 			}
 		}
-
 		reducedForm(myMap)
 		polynomialDegree(myMap)
 		val disc = calcDiscriminant(myMap)
@@ -51,45 +51,53 @@ object computor {
 
 	def fillMap(degree: String, coef: Float)(f: (Float, Float) => Float) {
 		if ( !myMap.contains(degree) )
-			myMap += (degree -> coef)
+			myMap.update(degree, coef)
 		else
-			myMap += ( degree -> f(myMap(degree), coef) )
+			myMap.update( degree, f(myMap(degree), coef) )
 	}
 
 	def solutions(mySome: Option[(Float, Float, Float)], disc: Float) = mySome match{
 		case Some((0, 0, 0)) => println("Every real number is a solution."); System.exit(0)
 		case Some((0, 0, _)) => println("There's no solution."); System.exit(0)
-		case Some((a, b, c)) if disc >= 0 => solve(a, b, c, disc)
+		case Some((a, b, c)) => solve(a, b, c, disc)
+		case _ => println("error")
 	}
 
 	def solve(a: Float, b: Float, c: Float, disc: Float) {
-		if ( disc == 0 && a != 0) {
-			val res = -(b / (2 * a))
-			if (res != 0)
-				println( df.format(res) )
-			else
-				println("0")
-		}
-		else if ( a != 0 && disc > 0) {
-			val discSqrt = sqrt(disc)
-			if (-b - discSqrt == 0)
-				println("0")
-			else
-				println( df.format((-b - discSqrt) / (2 * a)) )
+		Some((disc, a)) match {
+			case Some((_, 0)) => println( df.format(-c / b ) )
+			case Some((disc, _)) if disc < 0 => {
+				val discSqrt = sqrt(-disc)
+				println( df.format(-b/(2*a)) + " - " + df.format(discSqrt/(2*a)) + "i")
+				println( df.format(-b/(2*a)) + " + " + df.format(discSqrt/(2*a)) + "i")
+			}
+			case Some((0, _)) => {
+				val res = -(b / (2 * a))
+				if (res != 0)
+					println( df.format(res) )
+				else
+					println(0)
+			}
+			case _ => {
+				val discSqrt = sqrt(disc)
+				if (-b - discSqrt == 0)
+					println(0)
+				else
+					println( df.format((-b - discSqrt) / (2 * a)) )
 
-			if (-b + discSqrt == 0)
-				println("0")
-			else
-				println( df.format((-b + discSqrt) / (2 * a)) )
+				if (-b + discSqrt == 0)
+					println(0)
+				else
+					println( df.format((-b + discSqrt) / (2 * a)) )
+			}
 		}
-		else
-			println( df.format(-c / b) )
 	}
 
 	def reducedForm(myMap: Map[String, Float]) {
+		val newMap = ListMap(myMap.toSeq.sortBy(_._1):_*)
 		print("Reduced form: ")
 		var check = 0
-		for ( (key, value) <- myMap ) {
+		for ( (key, value) <- newMap ) {
 			Some((key, value, check)) match {
 				case Some((key, value, _)) if value == 0 => print("")
 				case Some((key, value, _)) if value < 0 => print("- " + df.format(abs(value)))
@@ -126,10 +134,8 @@ object computor {
 
 	def calcDiscriminant(myMap: Map[String, Float]): Float = {
 		val disc = myMap("1") * myMap("1") - 4 * myMap("2") * myMap("0")
-		if (disc < 0) {
-			println("Discriminant is strictly negative.\nI can't solve.")
-			System.exit(0)
-		}
+		if (disc < 0)
+			println("Discriminant is strictly negative.\nThe two solutions are (imaginary numbers):")
 		else if (disc > 0 && myMap("2") != 0)
 			println("Discriminant is strictly positive.\nThe two solutions are:")
 		else
@@ -141,7 +147,6 @@ object computor {
 
 
 	def sqrt(num: Float): Float = {
-
 		def sqrtX(num: Float, guess: Float): Float = {
 			if ( guess * guess == num ) guess
 			else if (guess * guess > num) 0
@@ -161,12 +166,8 @@ object computor {
 		val check = matchIter.mkString
 		if (side != check)
 		{
-			println("Parsing Error. Ex: X^2 + 2 * X + 1 = 0")
+			println("Parsing Error. Ex: 1 + 2 * X + X^2 = 0")
 			System.exit(1)
 		}
 	}
 }
-
-// 9 * X^2 - 9 * X = 0
-// 9.3 * X^2 = 0 ok
-// - 9.3 * X^2 + 8 * X = 0
